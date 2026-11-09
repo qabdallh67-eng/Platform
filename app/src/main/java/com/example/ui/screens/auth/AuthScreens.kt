@@ -57,7 +57,7 @@ fun WelcomeScreen(
         ) {
             // Official Logo
             Image(
-                painter = painterResource(id = R.drawable.app_logo),
+                painter = painterResource(id = R.drawable.app_logo_new),
                 contentDescription = "شعار أبو قاعود",
                 modifier = Modifier
                     .size(130.dp)
@@ -153,7 +153,7 @@ fun LoginScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.app_logo),
+            painter = painterResource(id = R.drawable.app_logo_new),
             contentDescription = "شعار أبو قاعود",
             modifier = Modifier.size(90.dp).clip(RoundedCornerShape(18.dp)),
             contentScale = ContentScale.Fit
@@ -239,7 +239,7 @@ fun RegisterScreen(
         verticalArrangement = Arrangement.Center
     ) {
         Image(
-            painter = painterResource(id = R.drawable.app_logo),
+            painter = painterResource(id = R.drawable.app_logo_new),
             contentDescription = "شعار أبو قاعود",
             modifier = Modifier.size(70.dp).clip(RoundedCornerShape(14.dp)),
             contentScale = ContentScale.Fit
