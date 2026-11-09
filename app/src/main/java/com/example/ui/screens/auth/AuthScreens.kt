@@ -337,3 +337,69 @@ fun RegisterScreen(
         }
     }
 }
+
+
+@Composable
+fun PhoneVerificationScreen(
+    phone: String,
+    onVerifyClick: (String) -> Unit,
+    onBackToRegister: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var otp by remember { mutableStateOf("") }
+    var errorText by remember { mutableStateOf("") }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .padding(24.dp)
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Image(
+            painter = painterResource(id = R.drawable.app_logo_new),
+            contentDescription = "شعار أبو قاعود",
+            modifier = Modifier.size(82.dp).clip(RoundedCornerShape(18.dp)),
+            contentScale = ContentScale.Fit
+        )
+        Spacer(modifier = Modifier.height(20.dp))
+        Text("تأكيد رقم الموبايل", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.ExtraBold)
+        Text("اكتب كود التأكيد المكوّن من 6 أرقام المرسل إلى", color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(phone, color = BrandPrimary, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(24.dp))
+        OutlinedTextField(
+            value = otp,
+            onValueChange = { value ->
+                otp = value.filter { it.isDigit() }.take(6)
+                errorText = ""
+            },
+            label = { Text("كود التأكيد") },
+            leadingIcon = { Icon(Icons.Default.MarkEmailRead, contentDescription = null, tint = BrandPrimary) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("phone_otp_input"),
+            shape = RoundedCornerShape(12.dp)
+        )
+        if (errorText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(errorText, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(modifier = Modifier.height(20.dp))
+        Button(
+            onClick = {
+                if (otp.length != 6) errorText = "اكتب كود التأكيد المكوّن من 6 أرقام."
+                else onVerifyClick(otp)
+            },
+            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("phone_otp_submit_button"),
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
+        ) {
+            Text("تأكيد الرقم والدخول", color = Color.White, fontWeight = FontWeight.Bold)
+        }
+        Spacer(modifier = Modifier.height(12.dp))
+        TextButton(onClick = onBackToRegister) {
+            Text("العودة إلى تسجيل الدخول", color = BrandPrimary)
+        }
+    }
+}
