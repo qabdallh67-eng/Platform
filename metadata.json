@@ -1,0 +1,6 @@
+{
+  "name": "أبو قاعود",
+  "description": "منصة تعليمية متكاملة للطلاب — أبو قاعود",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

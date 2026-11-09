@@ -1,0 +1,14 @@
+<resources>
+    <string name="app_name">أبو قاعود</string>
+    <string name="platform_subtitle">منصة تعليمية متكاملة للطلاب</string>
+    <string name="welcome_headline">مرحبًا بك في منصة أبو قاعود التعليمية</string>
+    <string name="welcome_subheadline">ابدأ رحلتك التعليمية وحقق أهدافك معنا</string>
+    <string name="btn_login">تسجيل الدخول</string>
+    <string name="btn_register">إنشاء حساب جديد</string>
+    <string name="nav_home">الرئيسية</string>
+    <string name="nav_courses">الكورسات</string>
+    <string name="nav_my_courses">كورساتي</string>
+    <string name="nav_wallet">المحفظة</string>
+    <string name="nav_profile">حسابي</string>
+    <string name="currency_egp">ج.م</string>
+</resources>
