@@ -137,9 +137,10 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -154,108 +155,61 @@ fun LoginScreen(
         Image(
             painter = painterResource(id = R.drawable.app_logo),
             contentDescription = "شعار أبو قاعود",
-            modifier = Modifier
-                .size(90.dp)
-                .clip(RoundedCornerShape(18.dp)),
+            modifier = Modifier.size(90.dp).clip(RoundedCornerShape(18.dp)),
             contentScale = ContentScale.Fit
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "تسجيل الدخول",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Text(
-            text = "أهلاً بك مجددًا في منصتك التعليمية",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
+        Text("تسجيل الدخول", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Text("ادخل برقم موبايلك وكلمة المرور", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(28.dp))
 
         OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("البريد الإلكتروني") },
-            leadingIcon = {
-                Icon(Icons.Default.Email, contentDescription = null, tint = BrandPrimary)
-            },
+            value = phone,
+            onValueChange = { phone = it; errorText = "" },
+            label = { Text("رقم الموبايل") },
+            placeholder = { Text("01012345678") },
+            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = BrandPrimary) },
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("login_email_input"),
+            modifier = Modifier.fillMaxWidth().testTag("login_phone_input"),
             shape = RoundedCornerShape(12.dp)
         )
-
         Spacer(modifier = Modifier.height(16.dp))
-
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = { password = it; errorText = "" },
             label = { Text("كلمة المرور") },
-            leadingIcon = {
-                Icon(Icons.Default.Lock, contentDescription = null, tint = BrandPrimary)
-            },
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = BrandPrimary) },
             trailingIcon = {
                 IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
-                    Icon(
-                        imageVector = if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility,
-                        contentDescription = "إظهار/إخفاء كلمة المرور"
-                    )
+                    Icon(if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = "إظهار/إخفاء كلمة المرور")
                 }
             },
             visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("login_password_input"),
+            modifier = Modifier.fillMaxWidth().testTag("login_password_input"),
             shape = RoundedCornerShape(12.dp)
         )
-
+        if (errorText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(errorText, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
         Spacer(modifier = Modifier.height(24.dp))
-
         Button(
             onClick = {
-                if (email.isNotBlank() && email.contains("@") && password.isNotEmpty()) {
-                    onLoginClick(email.trim(), password)
-                }
+                if (phone.filter { it.isDigit() }.length !in 10..15) errorText = "اكتب رقم موبايل صحيح."
+                else if (password.isBlank()) errorText = "اكتب كلمة المرور."
+                else onLoginClick(phone.trim(), password)
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .testTag("login_submit_button"),
+            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("login_submit_button"),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
         ) {
-            Text(
-                text = "تسجيل الدخول",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Text("تسجيل الدخول", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.clickable { onNavigateToRegister() },
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = "ليس لديك حساب؟",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "إنشاء حساب جديد",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = BrandPrimary
-            )
+        Row(modifier = Modifier.clickable { onNavigateToRegister() }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("ليس لديك حساب؟", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("إنشاء حساب جديد", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = BrandPrimary)
         }
     }
 }
@@ -271,6 +225,8 @@ fun RegisterScreen(
     var phone by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
+    var isPasswordVisible by remember { mutableStateOf(false) }
+    var errorText by remember { mutableStateOf("") }
 
     Column(
         modifier = modifier
@@ -285,149 +241,99 @@ fun RegisterScreen(
         Image(
             painter = painterResource(id = R.drawable.app_logo),
             contentDescription = "شعار أبو قاعود",
-            modifier = Modifier
-                .size(70.dp)
-                .clip(RoundedCornerShape(14.dp)),
+            modifier = Modifier.size(70.dp).clip(RoundedCornerShape(14.dp)),
             contentScale = ContentScale.Fit
         )
-
         Spacer(modifier = Modifier.height(12.dp))
-
-        Text(
-            text = "إنشاء حساب طالب جديد",
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.ExtraBold,
-            color = MaterialTheme.colorScheme.onBackground
-        )
-
-        Text(
-            text = "انضم الآن إلى منصة أبو قاعود التعليمية للطلاب",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-
+        Text("إنشاء حساب طالب جديد", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
+        Text("رقم الموبايل أساسي، والبريد الإلكتروني اختياري", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(24.dp))
 
         OutlinedTextField(
             value = fullName,
-            onValueChange = { fullName = it },
+            onValueChange = { fullName = it; errorText = "" },
             label = { Text("الاسم الكامل") },
-            leadingIcon = {
-                Icon(Icons.Default.Person, contentDescription = null, tint = BrandPrimary)
-            },
+            leadingIcon = { Icon(Icons.Default.Person, contentDescription = null, tint = BrandPrimary) },
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("register_name_input"),
+            modifier = Modifier.fillMaxWidth().testTag("register_name_input"),
             shape = RoundedCornerShape(12.dp)
         )
-
         Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("البريد الإلكتروني") },
-            leadingIcon = {
-                Icon(Icons.Default.Email, contentDescription = null, tint = BrandPrimary)
-            },
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("register_email_input"),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
         OutlinedTextField(
             value = phone,
-            onValueChange = { phone = it },
-            label = { Text("رقم الهاتف (فودافون كاش أو واتساب)") },
-            leadingIcon = {
-                Icon(Icons.Default.Phone, contentDescription = null, tint = BrandPrimary)
-            },
+            onValueChange = { phone = it; errorText = "" },
+            label = { Text("رقم الموبايل") },
+            placeholder = { Text("01012345678") },
+            leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = BrandPrimary) },
             singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("register_phone_input"),
+            modifier = Modifier.fillMaxWidth().testTag("register_phone_input"),
             shape = RoundedCornerShape(12.dp)
         )
-
         Spacer(modifier = Modifier.height(12.dp))
-
+        OutlinedTextField(
+            value = email,
+            onValueChange = { email = it; errorText = "" },
+            label = { Text("البريد الإلكتروني (اختياري)") },
+            leadingIcon = { Icon(Icons.Default.Email, contentDescription = null, tint = BrandPrimary) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("register_email_input"),
+            shape = RoundedCornerShape(12.dp),
+            supportingText = { Text("تقدر تسيبه فاضي وتكمل عادي.") }
+        )
+        Spacer(modifier = Modifier.height(12.dp))
         OutlinedTextField(
             value = password,
-            onValueChange = { password = it },
+            onValueChange = { password = it; errorText = "" },
             label = { Text("كلمة المرور") },
-            leadingIcon = {
-                Icon(Icons.Default.Lock, contentDescription = null, tint = BrandPrimary)
-            },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("register_password_input"),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        OutlinedTextField(
-            value = confirmPassword,
-            onValueChange = { confirmPassword = it },
-            label = { Text("تأكيد كلمة المرور") },
-            leadingIcon = {
-                Icon(Icons.Default.LockReset, contentDescription = null, tint = BrandPrimary)
-            },
-            visualTransformation = PasswordVisualTransformation(),
-            singleLine = true,
-            modifier = Modifier
-                .fillMaxWidth()
-                .testTag("register_confirm_password_input"),
-            shape = RoundedCornerShape(12.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Button(
-            onClick = {
-                if (fullName.isNotBlank() && email.isNotBlank() && password == confirmPassword) {
-                    onRegisterClick(fullName.trim(), email.trim(), password, phone.trim())
+            leadingIcon = { Icon(Icons.Default.Lock, contentDescription = null, tint = BrandPrimary) },
+            trailingIcon = {
+                IconButton(onClick = { isPasswordVisible = !isPasswordVisible }) {
+                    Icon(if (isPasswordVisible) Icons.Default.VisibilityOff else Icons.Default.Visibility, contentDescription = "إظهار/إخفاء كلمة المرور")
                 }
             },
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp)
-                .testTag("register_submit_button"),
+            visualTransformation = if (isPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("register_password_input"),
+            shape = RoundedCornerShape(12.dp)
+        )
+        Spacer(modifier = Modifier.height(12.dp))
+        OutlinedTextField(
+            value = confirmPassword,
+            onValueChange = { confirmPassword = it; errorText = "" },
+            label = { Text("تأكيد كلمة المرور") },
+            leadingIcon = { Icon(Icons.Default.LockReset, contentDescription = null, tint = BrandPrimary) },
+            visualTransformation = PasswordVisualTransformation(),
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().testTag("register_confirm_password_input"),
+            shape = RoundedCornerShape(12.dp)
+        )
+        if (errorText.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            Text(errorText, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+        }
+        Spacer(modifier = Modifier.height(24.dp))
+        Button(
+            onClick = {
+                val phoneDigits = phone.filter { it.isDigit() }
+                when {
+                    fullName.isBlank() -> errorText = "اكتب اسمك بالكامل."
+                    phoneDigits.length !in 10..15 -> errorText = "اكتب رقم موبايل صحيح."
+                    email.isNotBlank() && (!email.contains("@") || !email.substringAfter("@").contains(".")) -> errorText = "البريد الإلكتروني غير صحيح، أو اتركه فارغًا."
+                    password.length < 6 -> errorText = "كلمة المرور لازم تكون 6 أحرف على الأقل."
+                    password != confirmPassword -> errorText = "كلمتا المرور غير متطابقتين."
+                    else -> onRegisterClick(fullName.trim(), email.trim(), password, phone.trim())
+                }
+            },
+            modifier = Modifier.fillMaxWidth().height(52.dp).testTag("register_submit_button"),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(containerColor = BrandPrimary)
         ) {
-            Text(
-                text = "إنشاء الحساب",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold,
-                color = Color.White
-            )
+            Text("إنشاء الحساب", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, color = Color.White)
         }
-
         Spacer(modifier = Modifier.height(16.dp))
-
-        Row(
-            modifier = Modifier.clickable { onNavigateToLogin() },
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Text(
-                text = "لديك حساب بالفعل؟",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Text(
-                text = "تسجيل الدخول",
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold,
-                color = BrandPrimary
-            )
+        Row(modifier = Modifier.clickable { onNavigateToLogin() }, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("لديك حساب بالفعل؟", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("تسجيل الدخول", style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold, color = BrandPrimary)
         }
     }
 }
