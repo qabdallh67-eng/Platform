@@ -37,6 +37,18 @@ jobs:
       - name: Run unit tests
         run: gradle --no-daemon testDebugUnitTest
 
+      - name: Generate temporary Android debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$GITHUB_WORKSPACE/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000
+
       - name: Build debug APK
         run: gradle --no-daemon assembleDebug
 
