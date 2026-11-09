@@ -67,9 +67,9 @@ class SupabaseClient(
     private fun normalizePhone(raw: String): String {
         val compact = raw.trim().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
         val normalized = when {
-            compact.startsWith("0020") -> "+\${compact.drop(2)}"
+            compact.startsWith("0020") -> "+${compact.drop(2)}"
             compact.startsWith("+") -> compact
-            compact.startsWith("01") && compact.length == 11 -> "+20\${compact.drop(1)}"
+            compact.startsWith("01") && compact.length == 11 -> "+20${compact.drop(1)}"
             compact.startsWith("1") && compact.length == 10 -> "+20$compact"
             else -> compact
         }
@@ -82,7 +82,7 @@ class SupabaseClient(
     suspend fun signUp(phone: String, email: String, password: String, fullName: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             val normalizedPhone = normalizePhone(phone)
-            val url = "\${SupabaseConfig.PROJECT_URL}/auth/v1/signup"
+            val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/signup"
             val json = JSONObject().apply {
                 put("phone", normalizedPhone)
                 put("password", password)
@@ -114,7 +114,7 @@ class SupabaseClient(
     suspend fun signIn(phone: String, password: String): Result<Pair<UserProfile, String>> = withContext(Dispatchers.IO) {
         try {
             val normalizedPhone = normalizePhone(phone)
-            val url = "\${SupabaseConfig.PROJECT_URL}/auth/v1/token?grant_type=password"
+            val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/token?grant_type=password"
             val json = JSONObject().apply {
                 put("phone", normalizedPhone)
                 put("password", password)
@@ -147,7 +147,7 @@ class SupabaseClient(
     }
 
     private fun loadStudentProfile(id: String, phone: String, fallbackEmail: String, fallbackName: String): UserProfile? {
-        val url = "\${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,email,role&limit=1"
+        val url = "${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,email,role&limit=1"
         client.newCall(buildRequest(url)).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) throw IOException(parseError(body, "تعذر تحميل بيانات حسابك من قاعدة البيانات."))
@@ -169,7 +169,7 @@ class SupabaseClient(
         val token = authToken
         if (token.isNullOrBlank()) return@withContext Result.success(null)
         try {
-            val response = client.newCall(buildRequest("\${SupabaseConfig.PROJECT_URL}/auth/v1/user")).execute()
+            val response = client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/auth/v1/user")).execute()
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 setAuthToken(null)
