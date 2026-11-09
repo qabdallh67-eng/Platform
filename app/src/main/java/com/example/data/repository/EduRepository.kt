@@ -329,7 +329,7 @@ class EduRepository(
         val newPost = ForumPost(
             id = "post-${System.currentTimeMillis()}",
             courseId = courseId,
-            userId = student?.id ?: "student-1",
+            userId = student?.id.orEmpty(),
             studentName = student?.fullName ?: "طالب المنصة",
             title = title,
             content = content,
