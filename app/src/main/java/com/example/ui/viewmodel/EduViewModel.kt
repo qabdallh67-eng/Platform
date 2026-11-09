@@ -107,6 +107,16 @@ class EduViewModel @JvmOverloads constructor(
     val notifications = repository.notifications
     val completedLessons = repository.completedLessons
 
+    init {
+        viewModelScope.launch {
+            val restored = repository.restoreSession()
+            if (restored.getOrDefault(false)) {
+                backStack.clear()
+                _currentScreen.value = ScreenDestination.Home
+            }
+        }
+    }
+
     fun navigateTo(dest: ScreenDestination) {
         val isPublicScreen = dest is ScreenDestination.Welcome ||
             dest is ScreenDestination.Login ||
