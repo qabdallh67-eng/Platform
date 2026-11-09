@@ -102,7 +102,7 @@ class EduRepository(
     val notifications: StateFlow<List<NotificationItem>> = _notifications.asStateFlow()
 
     // Lesson Progress: lessonId -> Boolean (isCompleted)
-    private val _completedLessons = MutableStateFlow<Set<String>>(setOf("lesson-1-1"))
+    private val _completedLessons = MutableStateFlow<Set<String>>(emptySet())
     val completedLessons: StateFlow<Set<String>> = _completedLessons.asStateFlow()
 
     // --- Authentication ---
@@ -393,251 +393,31 @@ class EduRepository(
     private fun createInitialCourses(): List<Course> {
         return listOf(
             Course(
-                id = "course-math",
-                title = "الرياضيات المتقدمة — التفاضل والتكامل",
-                description = "دورة شاملة تغطي جميع أفكار النهايات، الاشتقاق وتطبيقاته، والتكامل المحدد وغير المحدد مع بنك أسئلة الوزارة ونماذج امتحانات تفاعلية.",
-                price = 200.0,
-                thumbnailUrl = "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=600&auto=format&fit=crop&q=80",
+                id = "course-abdullah",
+                title = "عبد الله",
+                description = "كورس عبد الله التعليمي.",
+                price = 0.0,
+                thumbnailUrl = "https://images.unsplash.com/photo-1635070041078-e363dbe005cb?w=900&auto=format&fit=crop&q=85",
+                isPublished = true,
+                orderIndex = 1,
                 instructor = "أ. أبو قاعود",
-                level = "الصف الثالث الثانوي",
-                totalLessonsCount = 8,
+                level = "جميع المراحل",
+                totalLessonsCount = 0,
                 isEnrolled = true,
-                progressPercent = 35
-            ),
-            Course(
-                id = "course-physics",
-                title = "الفيزياء الحديثة والكهرومغناطيسية",
-                description = "شرح وافي لقوانين كيرشوف، الحث الكهرومغناطيسي، الدوائر المترددة وازدواجية الموجة والجسيم مع تجارب محاكاة وتطبيقات عملية.",
-                price = 220.0,
-                thumbnailUrl = "https://images.unsplash.com/photo-1636466497217-26a8cbeaf0aa?w=600&auto=format&fit=crop&q=80",
-                instructor = "أ. أبو قاعود",
-                level = "الصف الثالث الثانوي",
-                totalLessonsCount = 10,
-                isEnrolled = false,
-                progressPercent = 0
-            ),
-            Course(
-                id = "course-chem",
-                title = "الكيمياء العضوية الشاملة",
-                description = "إتقان تسمية وتفاعلات الهيدروكربونات، الكحولات، الفينولات، والأحماض الكربوكسيلية مع خرائط ذهنية مبتكرة لحفظ التفاعلات.",
-                price = 180.0,
-                thumbnailUrl = "https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=600&auto=format&fit=crop&q=80",
-                instructor = "أ. أبو قاعود",
-                level = "الصف الثالث الثانوي",
-                totalLessonsCount = 6,
-                isEnrolled = false,
                 progressPercent = 0
             )
         )
     }
 
     private fun createInitialModules(): Map<String, List<CourseModule>> {
-        return mapOf(
-            "course-math" to listOf(
-                CourseModule(
-                    id = "mod-1",
-                    courseId = "course-math",
-                    title = "الوحدة الأولى: نهايات الدوال وقواعد الاشتقاق",
-                    description = "تأسيس قوي لمفهوم النهاية والاشتقاق الضمني والبارامتري.",
-                    orderIndex = 1,
-                    lessons = listOf(
-                        Lesson(
-                            id = "lesson-1-1",
-                            moduleId = "mod-1",
-                            courseId = "course-math",
-                            title = "الدرس 1: مفهوم معدل التغير وقواعد الاشتقاق الأساسية",
-                            description = "شرح مدخل التفاضل، المعنى الهندسي للمشتقة الأولى، وقواعد اشتقاق كثيرات الحدود والدوال الكسرية.",
-                            videoUrl = "https://www.youtube.com/watch?v=17_1T09b6uY",
-                            videoType = "YOUTUBE",
-                            duration = "35 دقيقة",
-                            isFree = true,
-                            orderIndex = 1,
-                            status = LessonStatus.COMPLETED
-                        ),
-                        Lesson(
-                            id = "lesson-1-2",
-                            moduleId = "mod-1",
-                            courseId = "course-math",
-                            title = "الدرس 2: اشتقاق الدوال المثلثية وتطبيقات السلسلة",
-                            description = "قاعدة السلسلة المتسلسلة ومشتقات الجا، الجتا، والظا مع تدريبات مكثفة على مسائل المستويات العليا.",
-                            videoUrl = "https://www.youtube.com/watch?v=WsQQvHm4lSw",
-                            videoType = "YOUTUBE",
-                            duration = "42 دقيقة",
-                            isFree = false,
-                            orderIndex = 2,
-                            status = LessonStatus.AVAILABLE,
-                            relatedExamId = "exam-math-1",
-                            isExamMandatory = true,
-                            attachments = listOf(
-                                LessonAttachment(
-                                    id = "att-1",
-                                    title = "ملخص قوانين اشتقاق الدوال المثلثية.pdf",
-                                    fileUrl = "https://example.com/math-summary.pdf",
-                                    fileSize = "1.8 MB"
-                                )
-                            )
-                        ),
-                        Lesson(
-                            id = "lesson-1-3",
-                            moduleId = "mod-1",
-                            courseId = "course-math",
-                            title = "الدرس 3: الاشتقاق البارامتري والاشتقاق الضمني",
-                            description = "التعامل مع المعادلات الوسيطية وحساب المشتقات العليا مع شروط التماس والعمودي.",
-                            videoUrl = "https://www.youtube.com/watch?v=p33AXPCj264",
-                            videoType = "YOUTUBE",
-                            duration = "48 دقيقة",
-                            isFree = false,
-                            orderIndex = 3,
-                            status = LessonStatus.LOCKED,
-                            isExamMandatory = false
-                        )
-                    )
-                ),
-                CourseModule(
-                    id = "mod-2",
-                    courseId = "course-math",
-                    title = "الوحدة الثانية: تطبيقات التفاضل وسلوك الدالة",
-                    description = "تحديد فترات التزايد والتناقص، القيم العظمى والصغرى، ورسم المنحنيات.",
-                    orderIndex = 2,
-                    lessons = listOf(
-                        Lesson(
-                            id = "lesson-2-1",
-                            moduleId = "mod-2",
-                            courseId = "course-math",
-                            title = "الدرس 4: فترات التزايد والتناقص والنقاط الحرجة",
-                            description = "اختبار المشتقة الأولى ونقاط الانقلاب مع تطبيقات عملية على مسائل القيم القصوى.",
-                            videoUrl = "https://www.youtube.com/watch?v=rfscVS0vtbw",
-                            videoType = "YOUTUBE",
-                            duration = "50 دقيقة",
-                            isFree = false,
-                            orderIndex = 4,
-                            status = LessonStatus.LOCKED
-                        )
-                    )
-                )
-            ),
-            "course-physics" to listOf(
-                CourseModule(
-                    id = "mod-phys-1",
-                    courseId = "course-physics",
-                    title = "الفصل الأول: التيار الكهربي وقانون أوم وقوانين كيرشوف",
-                    description = "دراسة شدة التيار وفرق الجهد والمقاومة وتوصيل المقاومات.",
-                    orderIndex = 1,
-                    lessons = listOf(
-                        Lesson(
-                            id = "lesson-phys-1",
-                            moduleId = "mod-phys-1",
-                            courseId = "course-physics",
-                            title = "الدرس 1: قانون أوم والمقاومة النوعية والتوصيلية الكهربية",
-                            description = "مفهوم المقاومة وتأثير الطول والمساحة ودرجة الحرارة.",
-                            videoUrl = "https://www.youtube.com/watch?v=17_1T09b6uY",
-                            videoType = "YOUTUBE",
-                            duration = "40 دقيقة",
-                            isFree = true,
-                            orderIndex = 1,
-                            status = LessonStatus.AVAILABLE
-                        )
-                    )
-                )
-            )
-        )
+        return emptyMap()
     }
 
     private fun createInitialExams(): Map<String, Exam> {
-        return mapOf(
-            "exam-math-1" to Exam(
-                id = "exam-math-1",
-                courseId = "course-math",
-                moduleId = "mod-1",
-                lessonId = "lesson-1-2",
-                title = "اختبار تفاعلي: اشتقاق الدوال المثلثية وقاعدة السلسلة",
-                description = "اختبار تقييمي لقياس فهم قواعد اشتقاق الدوال الدائرية. انتبه: يسمح بمحاولة واحدة فقط، وسيتم احتساب المحاولة فور بدء الاختبار.",
-                timeLimitMinutes = 20,
-                maxAttempts = 1, // STRICT ONE ATTEMPT POLICY
-                passingPercentage = 60,
-                isMandatory = true,
-                totalMarks = 30,
-                remainingAttempts = 1,
-                questions = listOf(
-                    ExamQuestion(
-                        id = "q-1",
-                        examId = "exam-math-1",
-                        questionText = "إذا كانت ص = جا(٣س)، فإن د ص / د س تساوي:",
-                        questionType = QuestionType.MULTIPLE_CHOICE,
-                        options = listOf(
-                            "٣ جتا(٣س)",
-                            "-٣ جتا(٣س)",
-                            "جتا(٣س)",
-                            "٣ جا(٣س)"
-                        ),
-                        correctOptionIndex = 0,
-                        marks = 10,
-                        orderIndex = 1,
-                        explanation = "مشتقة جا(٣س) = جتا(٣س) مضروبة في مشتقة ما بداخل القوس وهي ٣، الناتج ٣ جتا(٣س)."
-                    ),
-                    ExamQuestion(
-                        id = "q-2",
-                        examId = "exam-math-1",
-                        questionText = "ميل المماس لمنحنى الدالة ص = ظا(س) عند س = ٠ يساوي ١.",
-                        questionType = QuestionType.TRUE_FALSE,
-                        options = listOf("صواب", "خطأ"),
-                        correctOptionIndex = 0,
-                        marks = 10,
-                        orderIndex = 2,
-                        explanation = "مشتقة ظا(س) هي قا²(س)، وقا(٠) = ١، إذن قا²(٠) = ١."
-                    ),
-                    ExamQuestion(
-                        id = "q-3",
-                        examId = "exam-math-1",
-                        questionText = "اشرح باختصار الخطوات المتبعة لإيجاد المشتقة الأولى لدالة ضمنية س² + ص² = ٢٥ بالنسبة للمتغير س، ثم احسب ميل المماس عند النقطة (٣، ٤).",
-                        questionType = QuestionType.ESSAY,
-                        options = emptyList(),
-                        marks = 10,
-                        orderIndex = 3,
-                        modelEssayAnswer = "نشتق الطرفين بالنسبة لـ س: ٢س + ٢ص (د ص / د س) = ٠. إذن د ص / د س = -س / ص. بالتعويض بالنقطة (٣، ٤) نحصل على ميل المماس = -٣/٤."
-                    )
-                )
-            )
-        )
+        return emptyMap()
     }
 
     private fun createInitialForumPosts(): Map<String, List<ForumPost>> {
-        return mapOf(
-            "course-math" to listOf(
-                ForumPost(
-                    id = "fp-1",
-                    courseId = "course-math",
-                    userId = "user-2",
-                    studentName = "محمد إبراهيم",
-                    title = "سؤال في مسألة اشتقاق خارج قسمة دالتين",
-                    content = "هل يجب دائماً فك الأقواس في المقام بعد تطبيق قاعدة اشتقاق الكسر أم يمكن تركه كما هو؟",
-                    createdAt = "منذ ساعتين",
-                    likesCount = 5,
-                    commentsCount = 2,
-                    isLikedByMe = true,
-                    comments = listOf(
-                        ForumComment(
-                            id = "c-1",
-                            postId = "fp-1",
-                            userId = "user-admin",
-                            studentName = "أ. أبو قاعود (المشرف)",
-                            content = "يفضل دائماً ترك المقام (المقام)² دون فك الأقواس إلا إذا كان هناك اختصار مباشر مع البسط.",
-                            createdAt = "منذ ساعة"
-                        )
-                    )
-                ),
-                ForumPost(
-                    id = "fp-2",
-                    courseId = "course-math",
-                    userId = "user-3",
-                    studentName = "سارة محمود",
-                    title = "نصيحة لمراجعة الوحدة الأولى",
-                    content = "قمت بحل بنك الأسئلة المرفق في الدرس الثاني وكان مفيداً جداً خاصة مسائل المستويات العليا!",
-                    createdAt = "أمس",
-                    likesCount = 12,
-                    commentsCount = 1
-                )
-            )
-        )
+        return emptyMap()
     }
 }
