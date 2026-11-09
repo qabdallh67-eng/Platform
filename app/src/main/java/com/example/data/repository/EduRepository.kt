@@ -80,12 +80,13 @@ class EduRepository(
     private val _completedLessons = MutableStateFlow<Set<String>>(emptySet())
     val completedLessons: StateFlow<Set<String>> = _completedLessons.asStateFlow()
 
-    // --- Authentication ---
-    suspend fun login(email: String, pass: String): Result<UserProfile> {
-        if (email.isBlank() || !email.contains("@")) {
-            return Result.failure(Exception("اكتب البريد الإلكتروني الصحيح المستخدم عند إنشاء الحساب."))
+    // --- Phone-first authentication; email is optional ---
+    suspend fun login(phone: String, pass: String): Result<UserProfile> {
+        val digits = phone.filter { it.isDigit() }
+        if (digits.length !in 10..15 || pass.isBlank()) {
+            return Result.failure(Exception("اكتب رقم موبايل صحيح وكلمة المرور."))
         }
-        val result = supabaseClient.signIn(email.trim(), pass)
+        val result = supabaseClient.signIn(phone.trim(), pass)
         return result.fold(
             onSuccess = { (profile, _) ->
                 _currentStudent.value = profile
@@ -101,10 +102,12 @@ class EduRepository(
     }
 
     suspend fun register(fullName: String, email: String, pass: String, phone: String): Result<UserProfile> {
-        if (fullName.isBlank() || email.isBlank() || !email.contains("@") || pass.length < 6) {
-            return Result.failure(Exception("أدخل الاسم والبريد الصحيح وكلمة مرور لا تقل عن 6 أحرف."))
+        val validEmail = email.isBlank() || (email.contains("@") && email.substringAfter("@").contains("."))
+        val phoneDigits = phone.filter { it.isDigit() }
+        if (fullName.isBlank() || phoneDigits.length !in 10..15 || !validEmail || pass.length < 6) {
+            return Result.failure(Exception("أدخل الاسم ورقم الموبايل الصحيح، وكلمة مرور لا تقل عن 6 أحرف. البريد الإلكتروني اختياري."))
         }
-        val result = supabaseClient.signUp(email.trim(), pass, fullName.trim(), phone.trim())
+        val result = supabaseClient.signUp(phone.trim(), email.trim(), pass, fullName.trim())
         return result.fold(
             onSuccess = { profile ->
                 _currentStudent.value = profile
