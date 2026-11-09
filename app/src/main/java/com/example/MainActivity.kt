@@ -10,6 +10,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import com.example.data.api.SupabaseClient
 import com.example.data.repository.EduRepository
 import com.example.ui.navigation.AppMainContent
 import com.example.ui.theme.AbouQaoudTheme
@@ -20,7 +21,7 @@ class MainActivity : ComponentActivity() {
         object : ViewModelProvider.Factory {
             @Suppress("UNCHECKED_CAST")
             override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                return EduViewModel(application, EduRepository()) as T
+                return EduViewModel(application, EduRepository(SupabaseClient(application))) as T
             }
         }
     }
