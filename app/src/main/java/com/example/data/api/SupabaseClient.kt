@@ -121,9 +121,9 @@ class SupabaseClient(
                     val profileUrl = "${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,role&limit=1"
                     val profileResponse = client.newCall(buildRequest(profileUrl)).execute()
                     val profileBody = profileResponse.body?.string().orEmpty()
-                    if (!profileResponse.isSuccessful) return@withContext Result.failure(Exception(parseError(profileBody, "تعذر تحميل بيانات حسابك.")))
+                    if (!profileResponse.isSuccessful) { setAuthToken(null); return@withContext Result.failure(Exception(parseError(profileBody, "تعذر تحميل بيانات حسابك."))) }
                     val profileArray = JSONArray(profileBody)
-                    if (profileArray.length() == 0) return@withContext Result.failure(Exception("ملف الطالب غير موجود في قاعدة البيانات. تواصل مع الإدارة."))
+                    if (profileArray.length() == 0) { setAuthToken(null); return@withContext Result.failure(Exception("ملف الطالب غير موجود في قاعدة البيانات. تواصل مع الإدارة.")) }
                     val dbProfile = profileArray.getJSONObject(0)
                     val profile = UserProfile(
                         id = id, email = email,
@@ -167,7 +167,7 @@ class SupabaseClient(
             val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: email.substringBefore("@")
             val profileResponse = client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,role&limit=1")).execute()
             val profileBody = profileResponse.body?.string().orEmpty()
-            if (!profileResponse.isSuccessful) return@withContext Result.failure(Exception(parseError(profileBody, "تعذر استعادة بيانات الحساب")))
+            if (!profileResponse.isSuccessful) { setAuthToken(null); return@withContext Result.failure(Exception(parseError(profileBody, "تعذر استعادة بيانات الحساب"))) }
             val rows = JSONArray(profileBody)
             if (rows.length() == 0) {
                 setAuthToken(null)
