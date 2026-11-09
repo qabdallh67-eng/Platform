@@ -79,12 +79,20 @@ class SupabaseClient(
         return normalized
     }
 
+    // Phone is the public login identifier. Supabase Email Auth stores a deterministic,
+    // non-deliverable alias; the optional contact email remains profile metadata only.
+    private fun phoneAuthEmail(normalizedPhone: String): String {
+        val digits = normalizedPhone.filter { it.isDigit() }
+        return "p$digits@phone-login.abouqaoud.invalid"
+    }
+
     suspend fun signUp(phone: String, email: String, password: String, fullName: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
             val normalizedPhone = normalizePhone(phone)
+            val authEmail = phoneAuthEmail(normalizedPhone)
             val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/signup"
             val json = JSONObject().apply {
-                put("phone", normalizedPhone)
+                put("email", authEmail)
                 put("password", password)
                 put("data", JSONObject().apply {
                     put("full_name", fullName)
@@ -100,11 +108,9 @@ class SupabaseClient(
                 val id = user.optString("id")
                 val token = auth.optString("access_token")
                 if (id.isBlank()) return@withContext Result.failure(Exception("الخادم لم يرجع بيانات الحساب. حاول مرة أخرى."))
-                if (token.isBlank()) return@withContext Result.success(
-                    UserProfile(id = id, email = email, fullName = fullName, phone = normalizedPhone, role = "pending_verification")
-                )
+                if (token.isBlank()) return@withContext Result.failure(Exception("تعذر تسجيل الحساب دون رسالة تأكيد. تأكد من إيقاف Confirm email في Supabase ثم حاول مرة أخرى."))
                 setAuthToken(token)
-                val profile = loadStudentProfile(id, user.optString("phone", normalizedPhone), email, fullName)
+                val profile = loadStudentProfile(id, normalizedPhone, email, fullName)
                     ?: run { setAuthToken(null); return@withContext Result.failure(Exception("تم إنشاء الحساب لكن تعذر تحميل ملف الطالب من قاعدة البيانات.")) }
                 Result.success(profile)
             }
@@ -154,7 +160,7 @@ class SupabaseClient(
             val normalizedPhone = if (isEmailLogin) "" else normalizePhone(identifier)
             val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/token?grant_type=password"
             val json = JSONObject().apply {
-                if (isEmailLogin) put("email", identifier.trim()) else put("phone", normalizedPhone)
+                put("email", if (isEmailLogin) identifier.trim() else phoneAuthEmail(normalizedPhone))
                 put("password", password)
             }
             client.newCall(buildRequest(url, "POST", json.toString())).execute().use { response ->
