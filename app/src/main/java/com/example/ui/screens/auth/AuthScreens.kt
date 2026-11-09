@@ -160,13 +160,13 @@ fun LoginScreen(
         )
         Spacer(modifier = Modifier.height(16.dp))
         Text("تسجيل الدخول", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.ExtraBold)
-        Text("ادخل برقم موبايلك وكلمة المرور", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("ادخل برقم موبايلك، أو بريد الحساب القديم، وكلمة المرور", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(modifier = Modifier.height(28.dp))
 
         OutlinedTextField(
             value = phone,
             onValueChange = { phone = it; errorText = "" },
-            label = { Text("رقم الموبايل") },
+            label = { Text("رقم الموبايل أو البريد الإلكتروني") },
             placeholder = { Text("01012345678") },
             leadingIcon = { Icon(Icons.Default.Phone, contentDescription = null, tint = BrandPrimary) },
             singleLine = true,
@@ -196,7 +196,7 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(24.dp))
         Button(
             onClick = {
-                if (phone.filter { it.isDigit() }.length !in 10..15) errorText = "اكتب رقم موبايل صحيح."
+                if (phone.filter { it.isDigit() }.length !in 10..15 && !(phone.contains("@") && phone.substringAfter("@").contains("."))) errorText = "اكتب رقم موبايل صحيح أو بريد الحساب القديم."
                 else if (password.isBlank()) errorText = "اكتب كلمة المرور."
                 else onLoginClick(phone.trim(), password)
             },
