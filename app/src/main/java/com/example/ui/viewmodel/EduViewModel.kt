@@ -51,7 +51,7 @@ class EduViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     // Current Navigation Screen
-    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.Home)
+    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.Welcome)
     val currentScreen: StateFlow<ScreenDestination> = _currentScreen.asStateFlow()
 
     // Navigation Stack for Android BackHandler
@@ -108,6 +108,14 @@ class EduViewModel @JvmOverloads constructor(
     val completedLessons = repository.completedLessons
 
     fun navigateTo(dest: ScreenDestination) {
+        val isPublicScreen = dest is ScreenDestination.Welcome ||
+            dest is ScreenDestination.Login ||
+            dest is ScreenDestination.Register
+        if (!isPublicScreen && repository.currentStudent.value == null) {
+            backStack.clear()
+            _currentScreen.value = ScreenDestination.Welcome
+            return
+        }
         if (_currentScreen.value != dest) {
             backStack.add(_currentScreen.value)
             _currentScreen.value = dest
