@@ -115,6 +115,7 @@ class SupabaseClient(
                     val userObj = jsonObj.getJSONObject("user")
                     val id = userObj.optString("id", "")
                     if (token.isBlank() || id.isBlank()) return@withContext Result.failure(Exception("لم يرجع خادم تسجيل الدخول جلسة صالحة."))
+                    setAuthToken(token)
                     val meta = userObj.optJSONObject("user_metadata")
                     val fullName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: email.substringBefore("@")
                     val profileUrl = "${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,role&limit=1"
@@ -130,8 +131,10 @@ class SupabaseClient(
                         phone = dbProfile.optString("phone", ""),
                         role = dbProfile.optString("role", "student")
                     )
-                    if (profile.role != "student") return@withContext Result.failure(Exception("هذا التطبيق مخصص لحسابات الطلاب فقط."))
-                    setAuthToken(token)
+                    if (profile.role != "student") {
+                        setAuthToken(null)
+                        return@withContext Result.failure(Exception("هذا التطبيق مخصص لحسابات الطلاب فقط."))
+                    }
                     Result.success(Pair(profile, token))
                 } else {
                     val errMsg = parseError(body, "البريد الإلكتروني أو كلمة المرور غير صحيحة")
