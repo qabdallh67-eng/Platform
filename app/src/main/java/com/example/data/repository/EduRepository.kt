@@ -119,6 +119,20 @@ class EduRepository(
         )
     }
 
+    suspend fun restoreSession(): Result<Boolean> {
+        val restored = supabaseClient.restoreSession()
+        if (restored.isFailure) return Result.failure(restored.exceptionOrNull()!!)
+        val profile = restored.getOrNull() ?: return Result.success(false)
+        _currentStudent.value = profile
+        val walletResult = refreshWalletData(profile.id)
+        if (walletResult.isFailure) {
+            _currentStudent.value = null
+            supabaseClient.setAuthToken(null)
+            return Result.failure(walletResult.exceptionOrNull()!!)
+        }
+        return Result.success(true)
+    }
+
     private suspend fun refreshWalletData(studentId: String): Result<Boolean> {
         val walletResult = supabaseClient.getWalletAccount(studentId)
         if (walletResult.isFailure) return Result.failure(walletResult.exceptionOrNull()!!)
