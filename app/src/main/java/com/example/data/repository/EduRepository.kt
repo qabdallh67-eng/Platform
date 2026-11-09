@@ -83,8 +83,9 @@ class EduRepository(
     // --- Phone-first authentication; email is optional ---
     suspend fun login(phone: String, pass: String): Result<UserProfile> {
         val digits = phone.filter { it.isDigit() }
-        if (digits.length !in 10..15 || pass.isBlank()) {
-            return Result.failure(Exception("اكتب رقم موبايل صحيح وكلمة المرور."))
+        val isLegacyEmail = phone.contains("@") && phone.substringAfter("@").contains(".")
+        if ((!isLegacyEmail && digits.length !in 10..15) || pass.isBlank()) {
+            return Result.failure(Exception("اكتب رقم موبايل صحيح (أو بريد الحسابات القديمة) وكلمة المرور."))
         }
         val result = supabaseClient.signIn(phone.trim(), pass)
         return result.fold(
