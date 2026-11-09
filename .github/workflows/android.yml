@@ -1,0 +1,57 @@
+name: Android CI - Build APK
+
+on:
+  push:
+    branches: [main, fix/student-entry-and-actions]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Test and build Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: Set up Gradle 9.3.1
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '9.3.1'
+
+      - name: Run unit tests
+        run: gradle --no-daemon testDebugUnitTest
+
+      - name: Generate temporary Android debug keystore
+        run: |
+          keytool -genkeypair -v \
+            -keystore "$GITHUB_WORKSPACE/debug.keystore" \
+            -storepass android \
+            -alias androiddebugkey \
+            -keypass android \
+            -dname "CN=Android Debug,O=Android,C=US" \
+            -keyalg RSA \
+            -keysize 2048 \
+            -validity 10000
+
+      - name: Build debug APK
+        run: gradle --no-daemon assembleDebug
+
+      - name: Upload installable APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: abou-qaoud-student-app-debug
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14

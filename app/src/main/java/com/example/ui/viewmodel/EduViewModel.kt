@@ -18,6 +18,7 @@ sealed class ScreenDestination {
     object Welcome : ScreenDestination()
     object Login : ScreenDestination()
     object Register : ScreenDestination()
+    object PhoneVerification : ScreenDestination()
     object Home : ScreenDestination()
     object Courses : ScreenDestination()
     data class CourseDetail(val courseId: String) : ScreenDestination()
@@ -51,11 +52,13 @@ class EduViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
 
     // Current Navigation Screen
-    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.Home)
+    private val _currentScreen = MutableStateFlow<ScreenDestination>(ScreenDestination.Welcome)
     val currentScreen: StateFlow<ScreenDestination> = _currentScreen.asStateFlow()
 
     // Navigation Stack for Android BackHandler
     private val backStack = mutableListOf<ScreenDestination>()
+    private val _pendingPhone = MutableStateFlow("")
+    val pendingPhone: StateFlow<String> = _pendingPhone.asStateFlow()
 
     // Search query on courses/home
     private val _searchQuery = MutableStateFlow("")
@@ -107,7 +110,26 @@ class EduViewModel @JvmOverloads constructor(
     val notifications = repository.notifications
     val completedLessons = repository.completedLessons
 
+    init {
+        viewModelScope.launch {
+            val restored = repository.restoreSession()
+            if (restored.getOrDefault(false)) {
+                backStack.clear()
+                _currentScreen.value = ScreenDestination.Home
+            }
+        }
+    }
+
     fun navigateTo(dest: ScreenDestination) {
+        val isPublicScreen = dest is ScreenDestination.Welcome ||
+            dest is ScreenDestination.Login ||
+            dest is ScreenDestination.Register ||
+            dest is ScreenDestination.PhoneVerification
+        if (!isPublicScreen && repository.currentStudent.value == null) {
+            backStack.clear()
+            _currentScreen.value = ScreenDestination.Welcome
+            return
+        }
         if (_currentScreen.value != dest) {
             backStack.add(_currentScreen.value)
             _currentScreen.value = dest
@@ -164,10 +186,30 @@ class EduViewModel @JvmOverloads constructor(
         viewModelScope.launch {
             val res = repository.register(name, email, pass, phone)
             if (res.isSuccess) {
-                navigateTo(ScreenDestination.Home)
+                val profile = res.getOrThrow()
+                if (profile.role == "pending_verification") {
+                    _pendingPhone.value = profile.phone
+                    navigateTo(ScreenDestination.PhoneVerification)
+                } else {
+                    navigateTo(ScreenDestination.Home)
+                }
                 onSuccess()
             } else {
                 onError(res.exceptionOrNull()?.message ?: "فشل إنشاء الحساب")
+            }
+        }
+    }
+
+    fun verifyPhone(otp: String, onSuccess: () -> Unit, onError: (String) -> Unit) {
+        viewModelScope.launch {
+            val res = repository.verifyPhoneOtp(_pendingPhone.value, otp)
+            if (res.isSuccess) {
+                _pendingPhone.value = ""
+                backStack.clear()
+                _currentScreen.value = ScreenDestination.Home
+                onSuccess()
+            } else {
+                onError(res.exceptionOrNull()?.message ?: "تعذر تأكيد رقم الهاتف")
             }
         }
     }

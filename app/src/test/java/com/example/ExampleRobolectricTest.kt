@@ -12,6 +12,8 @@ class ExampleRobolectricTest {
         val repository = EduRepository()
         assertNotNull(repository)
         assertEquals("أبو قاعود", repository.appSettings.value.appName)
-        assertEquals(3, repository.courses.value.size)
+        assertEquals(1, repository.courses.value.size)
+        assertEquals("عبد الله", repository.courses.value.single().title)
+        assertEquals(0.0, repository.walletAccount.value.balance, 0.001)
     }
 }
