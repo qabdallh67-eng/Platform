@@ -153,7 +153,7 @@ fun AppMainContent(
                     is ScreenDestination.Register -> {
                         RegisterScreen(
                             onRegisterClick = { name, email, pass, phone ->
-                                viewModel.register(name, email, pass, phone, onSuccess = { Toast.makeText(context, "تم إنشاء طلب الحساب. إذا لم يكتمل الدخول، راجع إعداد تأكيد الهاتف في لوحة Supabase.", Toast.LENGTH_LONG).show() }, onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
+                                viewModel.register(name, email, pass, phone, onSuccess = { Toast.makeText(context, "تم إنشاء الحساب وتسجيل الدخول بنجاح", Toast.LENGTH_SHORT).show() }, onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
                             },
                             onNavigateToLogin = { viewModel.navigateTo(ScreenDestination.Login) }
                         )
