@@ -137,7 +137,7 @@ fun LoginScreen(
     onNavigateToRegister: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var emailOrPhone by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isPasswordVisible by remember { mutableStateOf(false) }
 
@@ -178,9 +178,9 @@ fun LoginScreen(
         Spacer(modifier = Modifier.height(28.dp))
 
         OutlinedTextField(
-            value = emailOrPhone,
-            onValueChange = { emailOrPhone = it },
-            label = { Text("البريد الإلكتروني أو رقم الهاتف") },
+            value = email,
+            onValueChange = { email = it },
+            label = { Text("البريد الإلكتروني") },
             leadingIcon = {
                 Icon(Icons.Default.Email, contentDescription = null, tint = BrandPrimary)
             },
@@ -220,8 +220,8 @@ fun LoginScreen(
 
         Button(
             onClick = {
-                if (emailOrPhone.isNotBlank() && password.isNotBlank()) {
-                    onLoginClick(emailOrPhone.trim(), password.trim())
+                if (email.isNotBlank() && email.contains("@") && password.isNotEmpty()) {
+                    onLoginClick(email.trim(), password)
                 }
             },
             modifier = Modifier
@@ -393,7 +393,7 @@ fun RegisterScreen(
         Button(
             onClick = {
                 if (fullName.isNotBlank() && email.isNotBlank() && password == confirmPassword) {
-                    onRegisterClick(fullName.trim(), email.trim(), password.trim(), phone.trim())
+                    onRegisterClick(fullName.trim(), email.trim(), password, phone.trim())
                 }
             },
             modifier = Modifier
