@@ -349,7 +349,7 @@ class EduRepository(
         val comment = ForumComment(
             id = "c-${System.currentTimeMillis()}",
             postId = postId,
-            userId = student?.id ?: "student-1",
+            userId = student?.id.orEmpty(),
             studentName = student?.fullName ?: "طالب المنصة",
             content = commentText,
             createdAt = "الآن"
