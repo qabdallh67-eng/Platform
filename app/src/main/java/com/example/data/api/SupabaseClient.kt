@@ -100,10 +100,47 @@ class SupabaseClient(
                 val id = user.optString("id")
                 val token = auth.optString("access_token")
                 if (id.isBlank()) return@withContext Result.failure(Exception("الخادم لم يرجع بيانات الحساب. حاول مرة أخرى."))
-                if (token.isBlank()) return@withContext Result.failure(Exception("تم إرسال طلب إنشاء الحساب، لكن تأكيد الهاتف مطلوب. فعّل مزود الرسائل النصية في Supabase وأكمل تأكيد الرقم، أو عطّل تأكيد الهاتف إذا كنت تريد الدخول مباشرة."))
+                if (token.isBlank()) return@withContext Result.success(
+                    UserProfile(id = id, email = email, fullName = fullName, phone = normalizedPhone, role = "pending_verification")
+                )
                 setAuthToken(token)
                 val profile = loadStudentProfile(id, user.optString("phone", normalizedPhone), email, fullName)
                     ?: run { setAuthToken(null); return@withContext Result.failure(Exception("تم إنشاء الحساب لكن تعذر تحميل ملف الطالب من قاعدة البيانات.")) }
+                Result.success(profile)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    suspend fun verifyPhoneOtp(phone: String, otp: String): Result<UserProfile> = withContext(Dispatchers.IO) {
+        try {
+            val normalizedPhone = normalizePhone(phone)
+            val json = JSONObject().apply {
+                put("type", "sms")
+                put("phone", normalizedPhone)
+                put("token", otp.trim())
+            }
+            client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/auth/v1/verify", "POST", json.toString())).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) return@withContext Result.failure(Exception(parseError(body, "كود التأكيد غير صحيح أو انتهت صلاحيته.")))
+                val auth = JSONObject(body)
+                val user = auth.optJSONObject("user") ?: JSONObject()
+                val id = user.optString("id")
+                val token = auth.optString("access_token")
+                if (id.isBlank() || token.isBlank()) return@withContext Result.failure(Exception("لم يكتمل تأكيد رقم الهاتف. حاول مرة أخرى."))
+                setAuthToken(token)
+                val meta = user.optJSONObject("user_metadata")
+                val profile = loadStudentProfile(
+                    id,
+                    user.optString("phone", normalizedPhone),
+                    meta?.optString("email").orEmpty(),
+                    meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: normalizedPhone
+                )
+                if (profile == null || profile.role != "student") {
+                    setAuthToken(null)
+                    return@withContext Result.failure(Exception("تم تأكيد الهاتف لكن ملف الطالب غير موجود. تواصل مع الإدارة."))
+                }
                 Result.success(profile)
             }
         } catch (e: Exception) {
