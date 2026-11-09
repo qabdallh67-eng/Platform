@@ -216,6 +216,8 @@ class EduRepository(
 
     // --- Exam Engine with Strict One-Attempt Policy ---
     fun startExam(examId: String): Result<ExamAttempt> {
+        val studentId = _currentStudent.value?.id
+            ?: return Result.failure(Exception("سجّل الدخول أولًا"))
         val exam = _exams.value[examId] ?: return Result.failure(Exception("الامتحان غير موجود"))
 
         // Count previous attempts
@@ -229,7 +231,7 @@ class EduRepository(
         val attempt = ExamAttempt(
             id = "attempt-${UUID.randomUUID()}",
             examId = examId,
-            studentId = _currentStudent.value?.id ?: "student-1",
+            studentId = studentId,
             attemptNumber = newAttemptNumber,
             status = "started",
             startedAt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date()),
