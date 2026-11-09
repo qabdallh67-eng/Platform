@@ -63,94 +63,113 @@ class SupabaseClient(
         return builder.build()
     }
 
-    // --- Authentication ---
-    suspend fun signUp(email: String, password: String, fullName: String, phone: String): Result<UserProfile> = withContext(Dispatchers.IO) {
+    // --- Phone + password authentication (email is optional profile information) ---
+    private fun normalizePhone(raw: String): String {
+        val compact = raw.trim().replace(" ", "").replace("-", "").replace("(", "").replace(")", "")
+        val normalized = when {
+            compact.startsWith("0020") -> "+\${compact.drop(2)}"
+            compact.startsWith("+") -> compact
+            compact.startsWith("01") && compact.length == 11 -> "+20\${compact.drop(1)}"
+            compact.startsWith("1") && compact.length == 10 -> "+20$compact"
+            else -> compact
+        }
+        require(Regex("^\\+[1-9][0-9]{7,14}$").matches(normalized)) {
+            "اكتب رقم موبايل صحيح بصيغة مصرية مثل 01012345678."
+        }
+        return normalized
+    }
+
+    suspend fun signUp(phone: String, email: String, password: String, fullName: String): Result<UserProfile> = withContext(Dispatchers.IO) {
         try {
-            val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/signup"
+            val normalizedPhone = normalizePhone(phone)
+            val url = "\${SupabaseConfig.PROJECT_URL}/auth/v1/signup"
             val json = JSONObject().apply {
-                put("email", email)
+                put("phone", normalizedPhone)
                 put("password", password)
                 put("data", JSONObject().apply {
                     put("full_name", fullName)
-                    put("phone", phone)
+                    put("phone", normalizedPhone)
+                    if (email.isNotBlank()) put("email", email.trim())
                 })
             }
-            val request = buildRequest(url, "POST", json.toString())
-            client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: ""
-                if (response.isSuccessful) {
-                    val jsonObj = JSONObject(body)
-                    val userObj = jsonObj.optJSONObject("user") ?: jsonObj
-                    val id = userObj.optString("id", "")
-                    val token = jsonObj.optString("access_token", "")
-                    if (id.isBlank()) return@withContext Result.failure(Exception("لم يصل معرّف الحساب من الخادم."))
-                    if (token.isBlank()) {
-                        return@withContext Result.failure(Exception("تم إنشاء الحساب بنجاح. افتح رسالة التأكيد التي أُرسلت إلى بريدك الإلكتروني، ثم ارجع وسجّل الدخول."))
-                    }
-                    setAuthToken(token)
-                    Result.success(UserProfile(id = id, email = email, fullName = fullName, phone = phone, role = "student"))
-                } else {
-                    val errMsg = parseError(body, "فشل إنشاء الحساب")
-                    Result.failure(Exception(errMsg))
-                }
+            client.newCall(buildRequest(url, "POST", json.toString())).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) return@withContext Result.failure(Exception(parseError(body, "تعذر إنشاء الحساب. راجع رقم الهاتف وكلمة المرور.")))
+                val auth = JSONObject(body)
+                val user = auth.optJSONObject("user") ?: auth
+                val id = user.optString("id")
+                val token = auth.optString("access_token")
+                if (id.isBlank()) return@withContext Result.failure(Exception("الخادم لم يرجع بيانات الحساب. حاول مرة أخرى."))
+                if (token.isBlank()) return@withContext Result.failure(Exception("تم إرسال طلب إنشاء الحساب، لكن تأكيد الهاتف مطلوب. فعّل مزود الرسائل النصية في Supabase وأكمل تأكيد الرقم، أو عطّل تأكيد الهاتف إذا كنت تريد الدخول مباشرة."))
+                setAuthToken(token)
+                val profile = loadStudentProfile(id, user.optString("phone", normalizedPhone), email, fullName)
+                    ?: run { setAuthToken(null); return@withContext Result.failure(Exception("تم إنشاء الحساب لكن تعذر تحميل ملف الطالب من قاعدة البيانات.")) }
+                Result.success(profile)
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
-    suspend fun signIn(email: String, password: String): Result<Pair<UserProfile, String>> = withContext(Dispatchers.IO) {
+    suspend fun signIn(phone: String, password: String): Result<Pair<UserProfile, String>> = withContext(Dispatchers.IO) {
         try {
-            val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/token?grant_type=password"
+            val normalizedPhone = normalizePhone(phone)
+            val url = "\${SupabaseConfig.PROJECT_URL}/auth/v1/token?grant_type=password"
             val json = JSONObject().apply {
-                put("email", email)
+                put("phone", normalizedPhone)
                 put("password", password)
             }
-            val request = buildRequest(url, "POST", json.toString())
-            client.newCall(request).execute().use { response ->
-                val body = response.body?.string() ?: ""
-                if (response.isSuccessful) {
-                    val jsonObj = JSONObject(body)
-                    val token = jsonObj.optString("access_token", "")
-                    val userObj = jsonObj.getJSONObject("user")
-                    val id = userObj.optString("id", "")
-                    if (token.isBlank() || id.isBlank()) return@withContext Result.failure(Exception("لم يرجع خادم تسجيل الدخول جلسة صالحة."))
-                    setAuthToken(token)
-                    val meta = userObj.optJSONObject("user_metadata")
-                    val fullName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: email.substringBefore("@")
-                    val profileUrl = "${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,role&limit=1"
-                    val profileResponse = client.newCall(buildRequest(profileUrl)).execute()
-                    val profileBody = profileResponse.body?.string().orEmpty()
-                    if (!profileResponse.isSuccessful) { setAuthToken(null); return@withContext Result.failure(Exception(parseError(profileBody, "تعذر تحميل بيانات حسابك."))) }
-                    val profileArray = JSONArray(profileBody)
-                    if (profileArray.length() == 0) { setAuthToken(null); return@withContext Result.failure(Exception("ملف الطالب غير موجود في قاعدة البيانات. تواصل مع الإدارة.")) }
-                    val dbProfile = profileArray.getJSONObject(0)
-                    val profile = UserProfile(
-                        id = id, email = email,
-                        fullName = dbProfile.optString("full_name", fullName),
-                        phone = dbProfile.optString("phone", ""),
-                        role = dbProfile.optString("role", "student")
-                    )
-                    if (profile.role != "student") {
-                        setAuthToken(null)
-                        return@withContext Result.failure(Exception("هذا التطبيق مخصص لحسابات الطلاب فقط."))
-                    }
-                    Result.success(Pair(profile, token))
-                } else {
-                    val errMsg = parseError(body, "البريد الإلكتروني أو كلمة المرور غير صحيحة")
-                    Result.failure(Exception(errMsg))
+            client.newCall(buildRequest(url, "POST", json.toString())).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (!response.isSuccessful) return@withContext Result.failure(Exception(parseError(body, "رقم الهاتف أو كلمة المرور غير صحيحة.")))
+                val auth = JSONObject(body)
+                val user = auth.optJSONObject("user") ?: JSONObject()
+                val id = user.optString("id")
+                val token = auth.optString("access_token")
+                if (id.isBlank() || token.isBlank()) return@withContext Result.failure(Exception("لم يرجع خادم تسجيل الدخول جلسة صالحة."))
+                setAuthToken(token)
+                val meta = user.optJSONObject("user_metadata")
+                val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: normalizedPhone
+                val profile = loadStudentProfile(id, user.optString("phone", normalizedPhone), meta?.optString("email").orEmpty(), fallbackName)
+                if (profile == null) {
+                    setAuthToken(null)
+                    return@withContext Result.failure(Exception("تم التحقق من الدخول لكن ملف الطالب غير موجود في قاعدة البيانات. تواصل مع الإدارة."))
                 }
+                if (profile.role != "student") {
+                    setAuthToken(null)
+                    return@withContext Result.failure(Exception("هذا التطبيق مخصص لحسابات الطلاب فقط."))
+                }
+                Result.success(Pair(profile, token))
             }
         } catch (e: Exception) {
             Result.failure(e)
         }
     }
 
+    private fun loadStudentProfile(id: String, phone: String, fallbackEmail: String, fallbackName: String): UserProfile? {
+        val url = "\${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,email,role&limit=1"
+        client.newCall(buildRequest(url)).execute().use { response ->
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) throw IOException(parseError(body, "تعذر تحميل بيانات حسابك من قاعدة البيانات."))
+            val rows = JSONArray(body)
+            if (rows.length() == 0) return null
+            val row = rows.getJSONObject(0)
+            return UserProfile(
+                id = id,
+                email = row.optString("email").ifBlank { fallbackEmail },
+                fullName = row.optString("full_name").ifBlank { fallbackName },
+                phone = row.optString("phone").ifBlank { phone },
+                role = row.optString("role", "student")
+            )
+        }
+    }
+
+    // --- Session restoration ---
     suspend fun restoreSession(): Result<UserProfile?> = withContext(Dispatchers.IO) {
         val token = authToken
         if (token.isNullOrBlank()) return@withContext Result.success(null)
         try {
-            val response = client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/auth/v1/user")).execute()
+            val response = client.newCall(buildRequest("\${SupabaseConfig.PROJECT_URL}/auth/v1/user")).execute()
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
                 setAuthToken(null)
@@ -158,29 +177,15 @@ class SupabaseClient(
             }
             val user = JSONObject(body)
             val id = user.optString("id")
-            val email = user.optString("email")
-            if (id.isBlank() || email.isBlank()) {
-                setAuthToken(null)
-                return@withContext Result.success(null)
-            }
             val meta = user.optJSONObject("user_metadata")
-            val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: email.substringBefore("@")
-            val profileResponse = client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,role&limit=1")).execute()
-            val profileBody = profileResponse.body?.string().orEmpty()
-            if (!profileResponse.isSuccessful) { setAuthToken(null); return@withContext Result.failure(Exception(parseError(profileBody, "تعذر استعادة بيانات الحساب"))) }
-            val rows = JSONArray(profileBody)
-            if (rows.length() == 0) {
+            val phone = user.optString("phone").ifBlank { meta?.optString("phone").orEmpty() }
+            if (id.isBlank() || phone.isBlank()) {
                 setAuthToken(null)
                 return@withContext Result.success(null)
             }
-            val row = rows.getJSONObject(0)
-            val profile = UserProfile(
-                id = id, email = email,
-                fullName = row.optString("full_name", fallbackName),
-                phone = row.optString("phone", ""),
-                role = row.optString("role", "student")
-            )
-            if (profile.role != "student") {
+            val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: phone
+            val profile = loadStudentProfile(id, phone, meta?.optString("email").orEmpty(), fallbackName)
+            if (profile == null || profile.role != "student") {
                 setAuthToken(null)
                 return@withContext Result.success(null)
             }
