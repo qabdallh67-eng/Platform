@@ -111,6 +111,29 @@ class EduRepository(
         val result = supabaseClient.signUp(phone.trim(), email.trim(), pass, fullName.trim())
         return result.fold(
             onSuccess = { profile ->
+                if (profile.role == "pending_verification") {
+                    Result.success(profile)
+                } else {
+                    _currentStudent.value = profile
+                    val walletResult = refreshWalletData(profile.id)
+                    if (walletResult.isFailure) {
+                        _currentStudent.value = null
+                        supabaseClient.setAuthToken(null)
+                        Result.failure(walletResult.exceptionOrNull() ?: Exception("تعذر تحميل بيانات المحفظة"))
+                    } else Result.success(profile)
+                }
+            },
+            onFailure = { error -> Result.failure(error) }
+        )
+    }
+
+    suspend fun verifyPhoneOtp(phone: String, otp: String): Result<UserProfile> {
+        if (otp.length != 6 || otp.any { !it.isDigit() }) {
+            return Result.failure(Exception("اكتب كود التأكيد المكوّن من 6 أرقام."))
+        }
+        val result = supabaseClient.verifyPhoneOtp(phone, otp)
+        return result.fold(
+            onSuccess = { profile ->
                 _currentStudent.value = profile
                 val walletResult = refreshWalletData(profile.id)
                 if (walletResult.isFailure) {
