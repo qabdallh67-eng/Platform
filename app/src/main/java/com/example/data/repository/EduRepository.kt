@@ -105,56 +105,32 @@ class EduRepository(
     private val _completedLessons = MutableStateFlow<Set<String>>(setOf("lesson-1-1"))
     val completedLessons: StateFlow<Set<String>> = _completedLessons.asStateFlow()
 
-    init {
-        // Automatically start with a logged-in student state for immediate testing,
-        // or support full Supabase login
-        _currentStudent.value = UserProfile(
-            id = "student-1",
-            email = "student@abouqaoud.edu",
-            fullName = "عبد الله أحمد",
-            phone = "01012345678",
-            avatarUrl = "",
-            role = "student"
-        )
-    }
-
     // --- Authentication ---
     suspend fun login(email: String, pass: String): Result<UserProfile> {
         val result = supabaseClient.signIn(email, pass)
-        return if (result.isSuccess) {
-            val (profile, _) = result.getOrThrow()
-            _currentStudent.value = profile
-            Result.success(profile)
-        } else {
-            // Local fallback if offline or test mode
-            val profile = UserProfile(
-                id = "student-${System.currentTimeMillis() % 1000}",
-                email = email,
-                fullName = if (email.contains("@")) email.substringBefore("@") else "طالب منصة أبو قاعود",
-                role = "student"
-            )
-            _currentStudent.value = profile
-            Result.success(profile)
-        }
+        return result.fold(
+            onSuccess = { (profile, _) ->
+                _currentStudent.value = profile
+                Result.success(profile)
+            },
+            onFailure = { error ->
+                Result.failure(error)
+            }
+        )
     }
 
     suspend fun register(fullName: String, email: String, pass: String, phone: String): Result<UserProfile> {
         val result = supabaseClient.signUp(email, pass, fullName)
-        return if (result.isSuccess) {
-            val profile = result.getOrThrow().copy(phone = phone)
-            _currentStudent.value = profile
-            Result.success(profile)
-        } else {
-            val profile = UserProfile(
-                id = "student-${System.currentTimeMillis() % 1000}",
-                email = email,
-                fullName = fullName,
-                phone = phone,
-                role = "student"
-            )
-            _currentStudent.value = profile
-            Result.success(profile)
-        }
+        return result.fold(
+            onSuccess = { profile ->
+                val registeredStudent = profile.copy(phone = phone)
+                _currentStudent.value = registeredStudent
+                Result.success(registeredStudent)
+            },
+            onFailure = { error ->
+                Result.failure(error)
+            }
+        )
     }
 
     fun logout() {
