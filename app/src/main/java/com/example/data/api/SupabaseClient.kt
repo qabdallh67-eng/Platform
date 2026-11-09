@@ -111,17 +111,18 @@ class SupabaseClient(
         }
     }
 
-    suspend fun signIn(phone: String, password: String): Result<Pair<UserProfile, String>> = withContext(Dispatchers.IO) {
+    suspend fun signIn(identifier: String, password: String): Result<Pair<UserProfile, String>> = withContext(Dispatchers.IO) {
         try {
-            val normalizedPhone = normalizePhone(phone)
+            val isEmailLogin = identifier.contains("@")
+            val normalizedPhone = if (isEmailLogin) "" else normalizePhone(identifier)
             val url = "${SupabaseConfig.PROJECT_URL}/auth/v1/token?grant_type=password"
             val json = JSONObject().apply {
-                put("phone", normalizedPhone)
+                if (isEmailLogin) put("email", identifier.trim()) else put("phone", normalizedPhone)
                 put("password", password)
             }
             client.newCall(buildRequest(url, "POST", json.toString())).execute().use { response ->
                 val body = response.body?.string().orEmpty()
-                if (!response.isSuccessful) return@withContext Result.failure(Exception(parseError(body, "رقم الهاتف أو كلمة المرور غير صحيحة.")))
+                if (!response.isSuccessful) return@withContext Result.failure(Exception(parseError(body, "رقم الهاتف أو البريد الإلكتروني أو كلمة المرور غير صحيحة.")))
                 val auth = JSONObject(body)
                 val user = auth.optJSONObject("user") ?: JSONObject()
                 val id = user.optString("id")
@@ -129,8 +130,10 @@ class SupabaseClient(
                 if (id.isBlank() || token.isBlank()) return@withContext Result.failure(Exception("لم يرجع خادم تسجيل الدخول جلسة صالحة."))
                 setAuthToken(token)
                 val meta = user.optJSONObject("user_metadata")
-                val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: normalizedPhone
-                val profile = loadStudentProfile(id, user.optString("phone", normalizedPhone), meta?.optString("email").orEmpty(), fallbackName)
+                val actualPhone = user.optString("phone").ifBlank { meta?.optString("phone").orEmpty() }.ifBlank { normalizedPhone }
+                val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: actualPhone.ifBlank { identifier }
+                val fallbackEmail = user.optString("email").ifBlank { meta?.optString("email").orEmpty() }
+                val profile = loadStudentProfile(id, actualPhone, fallbackEmail, fallbackName)
                 if (profile == null) {
                     setAuthToken(null)
                     return@withContext Result.failure(Exception("تم التحقق من الدخول لكن ملف الطالب غير موجود في قاعدة البيانات. تواصل مع الإدارة."))
