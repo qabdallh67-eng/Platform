@@ -1,5 +1,7 @@
 package com.example.ui.navigation
 
+import android.widget.Toast
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
@@ -7,6 +9,7 @@ import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.LayoutDirection
@@ -38,6 +41,7 @@ fun AppMainContent(
     modifier: Modifier = Modifier
 ) {
     // Force Arabic RTL default throughout entire app
+    val context = LocalContext.current
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         val currentScreen by viewModel.currentScreen.collectAsState()
 
@@ -139,7 +143,7 @@ fun AppMainContent(
                     is ScreenDestination.Login -> {
                         LoginScreen(
                             onLoginClick = { email, pass ->
-                                viewModel.login(email, pass, onSuccess = {}, onError = {})
+                                viewModel.login(email, pass, onSuccess = { Toast.makeText(context, "تم تسجيل الدخول بنجاح", Toast.LENGTH_SHORT).show() }, onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
                             },
                             onNavigateToRegister = { viewModel.navigateTo(ScreenDestination.Register) }
                         )
@@ -148,7 +152,7 @@ fun AppMainContent(
                     is ScreenDestination.Register -> {
                         RegisterScreen(
                             onRegisterClick = { name, email, pass, phone ->
-                                viewModel.register(name, email, pass, phone, onSuccess = {}, onError = {})
+                                viewModel.register(name, email, pass, phone, onSuccess = { Toast.makeText(context, "تم إنشاء الحساب بنجاح", Toast.LENGTH_SHORT).show() }, onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
                             },
                             onNavigateToLogin = { viewModel.navigateTo(ScreenDestination.Login) }
                         )
