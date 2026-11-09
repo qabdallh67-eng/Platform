@@ -86,16 +86,9 @@ class EduRepository(
             NotificationItem(
                 id = "notif-1",
                 title = "مرحبًا بك في منصة أبو قاعود!",
-                message = "نتمنى لك رحلة تعليمية موفقة وممتعة مع نخبة الدروس والامتحانات التفاعلية.",
+                message = "نتمنى لك رحلة تعليمية موفقة وممتعة مع منصة أبو قاعود.",
                 createdAt = "منذ قليل",
                 type = "welcome"
-            ),
-            NotificationItem(
-                id = "notif-2",
-                title = "تم إضافة امتحان جديد",
-                message = "تمت إضافة اختبار تقييمي لوحدة التفاضل والتكامل في كورس الرياضيات.",
-                createdAt = "اليوم",
-                type = "exam"
             )
         )
     )
