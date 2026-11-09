@@ -101,7 +101,7 @@ fun ProfileScreen(
                         )
 
                         Text(
-                            text = student?.email ?: "لم يتم تحميل بيانات الحساب",
+                            text = student?.email?.takeIf { it.isNotBlank() } ?: student?.phone.orEmpty(),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
