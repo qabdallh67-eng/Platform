@@ -101,7 +101,7 @@ fun ProfileScreen(
                         )
 
                         Text(
-                            text = student?.email ?: "student@abouqaoud.edu",
+                            text = student?.email ?: "لم يتم تحميل بيانات الحساب",
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
