@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.example.ui.screens.ai.AiAssistantScreen
 import com.example.ui.screens.auth.LoginScreen
+import com.example.ui.screens.auth.PhoneVerificationScreen
 import com.example.ui.screens.auth.RegisterScreen
 import com.example.ui.screens.auth.WelcomeScreen
 import com.example.ui.screens.course.CourseDetailScreen
@@ -152,9 +153,23 @@ fun AppMainContent(
                     is ScreenDestination.Register -> {
                         RegisterScreen(
                             onRegisterClick = { name, email, pass, phone ->
-                                viewModel.register(name, email, pass, phone, onSuccess = { Toast.makeText(context, "تم إنشاء الحساب بنجاح", Toast.LENGTH_SHORT).show() }, onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
+                                viewModel.register(name, email, pass, phone, onSuccess = { Toast.makeText(context, "تم إرسال طلب إنشاء الحساب. إذا طُلب التأكيد أدخل كود الرسالة.", Toast.LENGTH_LONG).show() }, onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() })
                             },
                             onNavigateToLogin = { viewModel.navigateTo(ScreenDestination.Login) }
+                        )
+                    }
+
+                    is ScreenDestination.PhoneVerification -> {
+                        PhoneVerificationScreen(
+                            phone = viewModel.pendingPhone.value,
+                            onVerifyClick = { otp ->
+                                viewModel.verifyPhone(
+                                    otp,
+                                    onSuccess = { Toast.makeText(context, "تم تأكيد رقم الهاتف وتسجيل الدخول", Toast.LENGTH_SHORT).show() },
+                                    onError = { Toast.makeText(context, it, Toast.LENGTH_LONG).show() }
+                                )
+                            },
+                            onBackToRegister = { viewModel.navigateTo(ScreenDestination.Register) }
                         )
                     }
 
