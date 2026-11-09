@@ -28,29 +28,11 @@ class EduRepository(
     )
     val cashSettings: StateFlow<CashWalletSettings> = _cashSettings.asStateFlow()
 
-    // Student Wallet
-    private val _walletAccount = MutableStateFlow(
-        WalletAccount(
-            userId = "student-1",
-            balance = 350.0,
-            currency = "EGP"
-        )
-    )
+    // Student Wallet: always starts at zero until loaded from Supabase.
+    private val _walletAccount = MutableStateFlow(WalletAccount())
     val walletAccount: StateFlow<WalletAccount> = _walletAccount.asStateFlow()
 
-    private val _transactions = MutableStateFlow<List<WalletTransaction>>(
-        listOf(
-            WalletTransaction(
-                id = "tx-1",
-                userId = "student-1",
-                amount = 350.0,
-                transactionType = "topup",
-                title = "شحن محفظة كاش",
-                createdAt = "2026-11-08 14:30",
-                notes = "تمت الموافقة من الإدارة"
-            )
-        )
-    )
+    private val _transactions = MutableStateFlow<List<WalletTransaction>>(emptyList())
     val transactions: StateFlow<List<WalletTransaction>> = _transactions.asStateFlow()
 
     private val _topupRequests = MutableStateFlow<List<TopupRequest>>(emptyList())
@@ -100,30 +82,62 @@ class EduRepository(
 
     // --- Authentication ---
     suspend fun login(email: String, pass: String): Result<UserProfile> {
-        val result = supabaseClient.signIn(email, pass)
+        if (email.isBlank() || !email.contains("@")) {
+            return Result.failure(Exception("اكتب البريد الإلكتروني الصحيح المستخدم عند إنشاء الحساب."))
+        }
+        val result = supabaseClient.signIn(email.trim(), pass)
         return result.fold(
             onSuccess = { (profile, _) ->
                 _currentStudent.value = profile
-                Result.success(profile)
+                val walletResult = refreshWalletData(profile.id)
+                if (walletResult.isFailure) {
+                    _currentStudent.value = null
+                    supabaseClient.setAuthToken(null)
+                    Result.failure(walletResult.exceptionOrNull() ?: Exception("تعذر تحميل بيانات المحفظة"))
+                } else Result.success(profile)
             },
-            onFailure = { error ->
-                Result.failure(error)
-            }
+            onFailure = { error -> Result.failure(error) }
         )
     }
 
     suspend fun register(fullName: String, email: String, pass: String, phone: String): Result<UserProfile> {
-        val result = supabaseClient.signUp(email, pass, fullName)
+        if (fullName.isBlank() || email.isBlank() || !email.contains("@") || pass.length < 6) {
+            return Result.failure(Exception("أدخل الاسم والبريد الصحيح وكلمة مرور لا تقل عن 6 أحرف."))
+        }
+        val result = supabaseClient.signUp(email.trim(), pass, fullName.trim(), phone.trim())
         return result.fold(
             onSuccess = { profile ->
-                val registeredStudent = profile.copy(phone = phone)
-                _currentStudent.value = registeredStudent
-                Result.success(registeredStudent)
+                _currentStudent.value = profile
+                val walletResult = refreshWalletData(profile.id)
+                if (walletResult.isFailure) {
+                    _currentStudent.value = null
+                    supabaseClient.setAuthToken(null)
+                    Result.failure(walletResult.exceptionOrNull() ?: Exception("تعذر تحميل بيانات المحفظة"))
+                } else Result.success(profile)
             },
-            onFailure = { error ->
-                Result.failure(error)
-            }
+            onFailure = { error -> Result.failure(error) }
         )
+    }
+
+    private suspend fun refreshWalletData(studentId: String): Result<Boolean> {
+        val walletResult = supabaseClient.getWalletAccount(studentId)
+        if (walletResult.isFailure) return Result.failure(walletResult.exceptionOrNull()!!)
+        _walletAccount.value = walletResult.getOrNull() ?: WalletAccount(userId = studentId, balance = 0.0)
+
+        val txResult = supabaseClient.getWalletTransactions(studentId)
+        if (txResult.isFailure) return Result.failure(txResult.exceptionOrNull()!!)
+        _transactions.value = txResult.getOrDefault(emptyList())
+
+        val requestsResult = supabaseClient.getTopupRequests(studentId)
+        if (requestsResult.isFailure) return Result.failure(requestsResult.exceptionOrNull()!!)
+        _topupRequests.value = requestsResult.getOrDefault(emptyList())
+        return Result.success(true)
+    }
+
+    suspend fun refreshWallet(): Result<Boolean> {
+        val studentId = _currentStudent.value?.id
+            ?: return Result.failure(Exception("سجّل الدخول أولًا"))
+        return refreshWalletData(studentId)
     }
 
     fun logout() {
@@ -135,57 +149,25 @@ class EduRepository(
     suspend fun purchaseCourse(courseId: String): Result<Boolean> {
         val course = _courses.value.find { it.id == courseId }
             ?: return Result.failure(Exception("الكورس غير موجود"))
+        if (_currentStudent.value == null) return Result.failure(Exception("سجّل الدخول أولًا"))
+        if (course.isEnrolled) return Result.success(true)
 
-        if (course.isEnrolled) {
-            return Result.success(true)
-        }
-
-        val currentBal = _walletAccount.value.balance
-        if (currentBal < course.price) {
-            return Result.failure(Exception("رصيد المحفظة غير كافٍ. المطلوب: ${course.price} ج.م، رصيدك الحالي: $currentBal ج.م"))
-        }
-
-        // Try RPC on Supabase
-        val rpcResult = supabaseClient.purchaseCourseRpc(courseId)
-
-        // Deduct from wallet and mark course enrolled
-        val newBal = currentBal - course.price
-        _walletAccount.value = _walletAccount.value.copy(balance = newBal)
-
-        val newTx = WalletTransaction(
-            id = "tx-${System.currentTimeMillis()}",
-            userId = _currentStudent.value?.id ?: "student-1",
-            amount = -course.price,
-            transactionType = "purchase",
-            title = "شراء ${course.title}",
-            createdAt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
-            notes = "تم الخصم من الرصيد والاشتراك بالكورس"
-        )
-        _transactions.value = listOf(newTx) + _transactions.value
-
-        _courses.value = _courses.value.map {
-            if (it.id == courseId) it.copy(isEnrolled = true) else it
-        }
-
+        val purchaseResult = supabaseClient.purchaseCourseRpc(courseId)
+        if (purchaseResult.isFailure) return Result.failure(purchaseResult.exceptionOrNull()!!)
+        val refreshResult = refreshWallet()
+        if (refreshResult.isFailure) return Result.failure(refreshResult.exceptionOrNull()!!)
+        _courses.value = _courses.value.map { if (it.id == courseId) it.copy(isEnrolled = true) else it }
         return Result.success(true)
     }
 
-    // --- Wallet Top-up ---
+    // --- Wallet Top-up: requests do not credit balance until admin approval ---
     suspend fun submitTopup(amount: Double, proofUri: String): Result<Boolean> {
         if (amount <= 0) return Result.failure(Exception("يرجى إدخال مبلغ صحيح"))
-        val userId = _currentStudent.value?.id ?: "student-1"
-        val req = TopupRequest(
-            id = "topup-${System.currentTimeMillis()}",
-            userId = userId,
-            amount = amount,
-            proofUrl = proofUri,
-            status = "pending",
-            createdAt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date()),
-            notes = "طلب شحن قيد مراجعة الإدارة"
-        )
-        _topupRequests.value = listOf(req) + _topupRequests.value
-        supabaseClient.submitTopupRequest(userId, amount, proofUri)
-        return Result.success(true)
+        val userId = _currentStudent.value?.id
+            ?: return Result.failure(Exception("سجّل الدخول قبل طلب الشحن"))
+        val submitted = supabaseClient.submitTopupRequest(userId, amount, proofUri)
+        if (submitted.isFailure) return Result.failure(submitted.exceptionOrNull()!!)
+        return refreshWalletData(userId)
     }
 
     // --- Lesson Progression ---
