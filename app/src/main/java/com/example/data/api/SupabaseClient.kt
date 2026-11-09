@@ -146,6 +146,50 @@ class SupabaseClient(
         }
     }
 
+    suspend fun restoreSession(): Result<UserProfile?> = withContext(Dispatchers.IO) {
+        val token = authToken
+        if (token.isNullOrBlank()) return@withContext Result.success(null)
+        try {
+            val response = client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/auth/v1/user")).execute()
+            val body = response.body?.string().orEmpty()
+            if (!response.isSuccessful) {
+                setAuthToken(null)
+                return@withContext Result.success(null)
+            }
+            val user = JSONObject(body)
+            val id = user.optString("id")
+            val email = user.optString("email")
+            if (id.isBlank() || email.isBlank()) {
+                setAuthToken(null)
+                return@withContext Result.success(null)
+            }
+            val meta = user.optJSONObject("user_metadata")
+            val fallbackName = meta?.optString("full_name")?.takeIf { it.isNotBlank() } ?: email.substringBefore("@")
+            val profileResponse = client.newCall(buildRequest("${SupabaseConfig.PROJECT_URL}/rest/v1/profiles?id=eq.$id&select=id,full_name,phone,role&limit=1")).execute()
+            val profileBody = profileResponse.body?.string().orEmpty()
+            if (!profileResponse.isSuccessful) return@withContext Result.failure(Exception(parseError(profileBody, "تعذر استعادة بيانات الحساب")))
+            val rows = JSONArray(profileBody)
+            if (rows.length() == 0) {
+                setAuthToken(null)
+                return@withContext Result.success(null)
+            }
+            val row = rows.getJSONObject(0)
+            val profile = UserProfile(
+                id = id, email = email,
+                fullName = row.optString("full_name", fallbackName),
+                phone = row.optString("phone", ""),
+                role = row.optString("role", "student")
+            )
+            if (profile.role != "student") {
+                setAuthToken(null)
+                return@withContext Result.success(null)
+            }
+            Result.success(profile)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // --- Courses Query ---
     suspend fun getCourses(): Result<List<Course>> = withContext(Dispatchers.IO) {
         try {
